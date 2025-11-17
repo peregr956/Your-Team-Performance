@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Team Performance - Critical Start</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
+          },
+        },
+      };
+    </script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body class="bg-gray-50">
+    <div id="root"></div>
+    <script type="text/babel">
+      const { useMemo, useState } = React;
+
+      /* ------------------------------------------------------------------ */
+      /* Helper utilities                                                   */
+      /* ------------------------------------------------------------------ */
+      const iconProps = {
+        xmlns: 'http://www.w3.org/2000/svg',
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeWidth: 1.8,
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        width: '1em',
+        height: '1em',
+      };
+
+      const IconBase = ({ children, className = '', ...rest }) => (
+        <svg {...iconProps} className={className} {...rest}>
+          {children}
+        </svg>
+      );
+
+      const ArrowDownRight = (props) => (
+        <IconBase {...props}>
+          <line x1="7" y1="7" x2="17" y2="17" />
+          <polyline points="17 7 17 17 7 17" />
+        </IconBase>
+      );
+
+      const ArrowUpRight = (props) => (
+        <IconBase {...props}>
+          <line x1="7" y1="17" x2="17" y2="7" />
+          <polyline points="7 7 17 7 17 17" />
+        </IconBase>
+      );
+
+      const Clock = (props) => (
+        <IconBase {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <polyline points="12 7 12 12 15 15" />
+        </IconBase>
+      );
+
+      const Users = (props) => (
+        <IconBase {...props}>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </IconBase>
+      );
+
+      const BarChart3 = (props) => (
+        <IconBase {...props}>
+          <path d="M3 3v18h18" />
+          <rect x="7" y="9" width="4" height="6" />
+          <rect x="13" y="5" width="4" height="10" />
+        </IconBase>
+      );
+
+      const LineChart = (props) => (
+        <IconBase {...props}>
+          <path d="M3 3v18h18" />
+          <path d="M6 15l4-4 3 3 6-6" />
+          <circle cx="6" cy="15" r="1" />
+          <circle cx="10" cy="11" r="1" />
+          <circle cx="13" cy="14" r="1" />
+          <circle cx="19" cy="8" r="1" />
+        </IconBase>
+      );
+
+      const Activity = (props) => (
+        <IconBase {...props}>
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </IconBase>
+      );
+
+      const FilterIcon = (props) => (
+        <IconBase {...props}>
+          <polygon points="3 4 21 4 14 12 14 19 10 21 10 12 3 4" />
+        </IconBase>
+      );
+
+      const createSeededRandom = (seed) => {
+        let value = seed;
+        return () => ((2 ** 31 - 1) & (value = Math.imul(48271, value))) / 2 ** 31;
+      };
+
+      const range = (length, mapFn) => Array.from({ length }, (_, index) => (mapFn ? mapFn(_, index) : index));
+
+      const formatHours = (value) => `${value.toFixed(1)} h`;
+
+      const calculateStdDev = (values) => {
+        if (!values.length) return 0;
+        const mean = values.reduce((total, val) => total + val, 0) / values.length;
+        const variance = values.reduce((acc, val) => acc + (val - mean) ** 2, 0) / values.length;
+        return Math.sqrt(variance);
+      };
+
+      const percentChange = (current, previous) => {
+        if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) {
+          return '0';
+        }
+        return (((current - previous) / previous) * 100).toFixed(0);
+      };
+
+      /* ------------------------------------------------------------------ */
+      /* Synthetic dashboard data                                           */
+      /* ------------------------------------------------------------------ */
+      const createDashboardData = ({ weeks, seed }) => {
+        const random = createSeededRandom(seed);
+
+        const weekLabels = range(weeks, (_, index) => {
+          const date = new Date();
+          date.setDate(date.getDate() - (weeks - index) * 7);
+          return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
+        });
+
+        const industryMedian = range(weeks, (_, i) => 5.4 - 0.05 * i + (random() - 0.5) * 0.1);
+        const industryQ1 = industryMedian.map((value) => value - 1.1 + (random() - 0.5) * 0.05);
+        const industryQ3 = industryMedian.map((value) => value + 1.1 + (random() - 0.5) * 0.05);
+        const customerMedian = range(weeks, (_, i) => 5.8 - 0.12 * i + (random() - 0.5) * 0.2);
+        const alertsPerWeek = range(weeks, () => 30 + Math.floor(random() * 40));
+        const pickupMedian = range(weeks, (_, i) => Math.max(0.2, 1.6 - 0.07 * i + (random() - 0.5) * 0.18));
+        const analystsActive = range(weeks, () => 5 + Math.floor(random() * 3));
+
+        const dayOfWeek = [
+          { label: 'Monday', n: 400, q1: 4.2, median: 5.1, q3: 6.2, lo: 2, hi: 11 },
+          { label: 'Tuesday', n: 410, q1: 4.3, median: 5.2, q3: 6.4, lo: 1.7, hi: 12 },
+          { label: 'Wednesday', n: 405, q1: 4.1, median: 5, q3: 6.3, lo: 1.8, hi: 12.5 },
+          { label: 'Thursday', n: 398, q1: 4.2, median: 5.1, q3: 6.5, lo: 1.6, hi: 13 },
+          { label: 'Friday', n: 390, q1: 4.3, median: 5.3, q3: 6.7, lo: 1.7, hi: 15 },
+          { label: 'Saturday', n: 280, q1: 6.5, median: 8.2, q3: 10.4, lo: 3, hi: 18 },
+          { label: 'Sunday', n: 270, q1: 6.7, median: 8.5, q3: 10.6, lo: 3, hi: 19 },
+        ];
+
+        const alertTypesData = range(30, (_, i) => {
+          const base = 4 + random() * 8;
+          return {
+            name: `Alert Type ${i + 1}`,
+            median: +(base + (random() - 0.5)).toFixed(1),
+            q1: +(base - 1).toFixed(1),
+            q3: +(base + 1).toFixed(1),
+            pickup: +(0.4 + random() * 2.2).toFixed(1),
+            n: Math.floor(20 + random() * 80),
+          };
+        });
+
+        const analystsBase = ['Avery', 'Blake', 'Casey', 'Devin', 'Emery', 'Flynn', 'Gray', 'Hayes', 'Indy', 'Jules', 'Kai', 'Logan'].map((name) => {
+          const base = 5.4 + (random() - 0.5);
+          return {
+            name,
+            q1: base - 0.6,
+            median: base + (random() - 0.5) * 0.4,
+            q3: base + 0.7,
+            lo: base - 1.5,
+            hi: base + 1.8,
+            n: 40 + Math.floor(random() * 80),
+          };
+        });
+
+        return {
+          totalWeeks: weeks,
+          weekLabels,
+          industryMedian,
+          industryQ1,
+          industryQ3,
+          customerMedian,
+          alertsPerWeek,
+          pickupMedian,
+          analystsActive,
+          dayOfWeek,
+          alertTypesData,
+          analystsBase,
+        };
+      };
+
+      const dashboardData = createDashboardData({ weeks: 12, seed: 1337 });
+
+      const TIMEFRAMES = [
+        { label: 'Last 4 weeks', value: 4 },
+        { label: 'Last 8 weeks', value: 8 },
+        { label: 'Last 12 weeks', value: 12 },
+      ];
+      const ANALYST_OPTIONS = ['All', ...dashboardData.analystsBase.map((analyst) => analyst.name)];
+      const ALERT_TYPES = ['All', 'Phishing', 'Malware', 'Endpoint', 'Network', 'Insider Threat'];
+      const ALERT_SOURCES = ['All', 'EDR', 'Email', 'SIEM', 'Network Sensor', 'Cloud Provider'];
+
+      const useTimeframeSlices = (dataset, timeframe) =>
+        useMemo(() => {
+          const start = Math.max(0, dataset.totalWeeks - timeframe);
+          const slice = (array) => array.slice(start);
+          const cust = slice(dataset.customerMedian);
+          const ind = slice(dataset.industryMedian);
+          const lbls = slice(dataset.weekLabels);
+          const bars = slice(dataset.alertsPerWeek);
+          const pick = slice(dataset.pickupMedian);
+          const active = slice(dataset.analystsActive);
+          const bandLow = slice(dataset.industryQ1);
+          const bandHigh = slice(dataset.industryQ3);
+          const apa = active.map((value, index) => (value ? +(bars[index] / value).toFixed(1) : 0));
+          const sd = calculateStdDev(ind);
+          const pctWithin1SD = cust.length ? Math.round((cust.filter((value, index) => value <= ind[index] + sd).length / cust.length) * 100) : 0;
+
+          return { cust, ind, lbls, bars, pick, active, apa, pctWithin1SD, bandLow, bandHigh };
+        }, [dataset, timeframe]);
+
+      /* ------------------------------------------------------------------ */
+      /* Chart components                                                   */
+      /* ------------------------------------------------------------------ */
+      const LineBandChart = ({ width = 900, height = 280, xLabels, lineA, bandLow, bandHigh, lineB }) => {
+        const pad = { t: 12, r: 12, b: 40, l: 40 };
+        const innerW = width - pad.l - pad.r;
+        const innerH = height - pad.t - pad.b;
+        const allY = [...lineA, ...bandLow, ...bandHigh, ...(lineB || [])].filter(Number.isFinite);
+        const yMin = Math.min(...allY) * 0.95;
+        const yMax = Math.max(...allY) * 1.05;
+        const x = (i) => pad.l + (innerW * (i / (xLabels.length - 1 || 1)));
+        const y = (v) => pad.t + innerH * (1 - (v - yMin) / (yMax - yMin || 1));
+        const poly = (arr) => arr.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+        const bandPoints = bandLow
+          .map((v, i) => [x(i), y(v)])
+          .concat(
+            bandHigh
+              .slice()
+              .reverse()
+              .map((v, i) => [x(bandHigh.length - 1 - i), y(v)])
+          )
+          .map((point) => point.join(','))
+          .join(' ');
+        return (
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-80">
+            <line x1={pad.l} y1={height - pad.b} x2={width - pad.r} y2={height - pad.b} stroke="#e5e7eb" />
+            <line x1={pad.l} y1={pad.t} x2={pad.l} y2={height - pad.b} stroke="#e5e7eb" />
+            {[0, 0.25, 0.5, 0.75, 1].map((t, index) => {
+              const yy = pad.t + innerH * (1 - t);
+              const val = yMin + (yMax - yMin) * t;
+              return (
+                <g key={index}>
+                  <line x1={pad.l} x2={width - pad.r} y1={yy} y2={yy} stroke="#f3f4f6" />
+                  <text x={8} y={yy + 4} className="text-[10px] fill-gray-500">
+                    {val.toFixed(1)}
+                  </text>
+                </g>
+              );
+            })}
+            <polygon points={bandPoints} fill="#f3f4f6" />
+            {lineB && <polyline fill="none" strokeDasharray="4 4" strokeWidth="2" stroke="#9ca3af" points={poly(lineB)} />}
+            <polyline fill="none" strokeWidth="2.2" stroke="#111827" points={poly(lineA)} />
+            {xLabels.map((label, index) => (
+              <text key={index} x={x(index)} y={height - 10} className="text-[10px] fill-gray-600" textAnchor="middle">
+                {label}
+              </text>
+            ))}
+            <g transform={`translate(${width - 250},${pad.t + 6})`}>
+              <rect x="0" y="-10" width="240" height="36" fill="white" opacity="0.7" />
+              <line x1="10" x2="38" y1="0" y2="0" stroke="#111827" strokeWidth="2.2" />
+              <text x="44" y="3" className="text-[10px] fill-gray-700">
+                Your weekly median
+              </text>
+              <line x1="10" x2="38" y1="14" y2="14" stroke="#9ca3af" strokeDasharray="4 4" strokeWidth="2" />
+              <text x="44" y="17" className="text-[10px] fill-gray-700">
+                Industry median
+              </text>
+              <rect x="10" y="22" width="28" height="6" fill="#f3f4f6" />
+              <text x="44" y="28" className="text-[10px] fill-gray-700">
+                Industry typical range (middle 50%)
+              </text>
+            </g>
+          </svg>
+        );
+      };
+
+      const BoxPlotChart = ({ data, width = 900, height = 280 }) => {
+        const pad = { t: 12, r: 12, b: 50, l: 40 };
+        const innerW = width - pad.l - pad.r;
+        const innerH = height - pad.t - pad.b;
+        const yMin = 0;
+        const yMax = Math.max(...data.map((d) => d.q3)) + 5;
+        const xStep = innerW / data.length;
+        const x = (i) => pad.l + xStep * (i + 0.5);
+        const y = (v) => pad.t + innerH * (1 - (v - yMin) / (yMax - yMin || 1));
+        return (
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-80">
+            <line x1={pad.l} y1={height - pad.b} x2={width - pad.r} y2={height - pad.b} stroke="#e5e7eb" />
+            <line x1={pad.l} y1={pad.t} x2={pad.l} y2={height - pad.b} stroke="#e5e7eb" />
+            {[0, 0.25, 0.5, 0.75, 1].map((t, index) => {
+              const yy = pad.t + innerH * (1 - t);
+              const val = yMin + (yMax - yMin) * t;
+              return (
+                <g key={index}>
+                  <line x1={pad.l} x2={width - pad.r} y1={yy} y2={yy} stroke="#f3f4f6" />
+                  <text x={8} y={yy + 4} className="text-[10px] fill-gray-500">
+                    {val.toFixed(1)}
+                  </text>
+                </g>
+              );
+            })}
+            {data.map((d, index) => {
+              const cx = x(index);
+              const boxW = Math.min(50, xStep * 0.6);
+              const yQ1 = y(d.q1);
+              const yQ3 = y(d.q3);
+              const yMed = y(d.median);
+              const yLo = y(d.lo);
+              const yHi = y(d.hi);
+              return (
+                <g key={index}>
+                  <line x1={cx} x2={cx} y1={yQ3} y2={yHi} stroke="#9ca3af" />
+                  <line x1={cx - 10} x2={cx + 10} y1={yHi} y2={yHi} stroke="#9ca3af" />
+                  <line x1={cx} x2={cx} y1={yQ1} y2={yLo} stroke="#9ca3af" />
+                  <line x1={cx - 10} x2={cx + 10} y1={yLo} y2={yLo} stroke="#9ca3af" />
+                  <rect x={cx - boxW / 2} y={yQ3} width={boxW} height={yQ1 - yQ3} fill="#f3f4f6" stroke="#9ca3af" />
+                  <line x1={cx - boxW / 2} x2={cx + boxW / 2} y1={yMed} y2={yMed} stroke="#111827" />
+                  <text x={cx} y={height - 10} className="text-[10px] fill-gray-600" textAnchor="middle">
+                    {d.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        );
+      };
+
+      const HorizontalIQRBars = ({ rows, width = 900, height = 320 }) => {
+        const pad = { t: 12, r: 12, b: 40, l: 120 };
+        const innerW = width - pad.l - pad.r;
+        const innerH = height - pad.t - pad.b;
+        const yStep = innerH / rows.length;
+        const xMin = 0;
+        const xMax = Math.max(...rows.map((r) => r.q3)) + 3;
+        const x = (v) => pad.l + (innerW * v) / (xMax - xMin || 1);
+        const y = (i) => pad.t + yStep * (i + 0.5);
+        return (
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-80">
+            <line x1={pad.l} y1={height - pad.b} x2={width - pad.r} y2={height - pad.b} stroke="#e5e7eb" />
+            <line x1={pad.l} y1={pad.t} x2={pad.l} y2={height - pad.b} stroke="#e5e7eb" />
+            {rows.map((row, index) => {
+              const cy = y(index);
+              return (
+                <g key={row.name}>
+                  <rect x={x(row.q1)} y={cy - 8} width={Math.max(2, x(row.q3) - x(row.q1))} height={16} fill="#f3f4f6" stroke="#9ca3af" />
+                  <line x1={x(row.q1)} x2={x(row.lo)} y1={cy} y2={cy} stroke="#9ca3af" />
+                  <line x1={x(row.q3)} x2={x(row.hi)} y1={cy} y2={cy} stroke="#9ca3af" />
+                  <line x1={x(row.median)} x2={x(row.median)} y1={cy - 10} y2={cy + 10} stroke="#111827" />
+                  <text x={width - pad.r} y={cy + 3} className="text-[10px] fill-gray-500" textAnchor="end">
+                    {row.n} alerts
+                  </text>
+                  <text x={pad.l - 8} y={cy + 3} className="text-[11px] fill-gray-700" textAnchor="end">
+                    {row.name}
+                  </text>
+                </g>
+              );
+            })}
+            <line x1={x(5.2)} x2={x(5.2)} y1={pad.t} y2={height - pad.b} stroke="#d1d5db" strokeDasharray="4 3" />
+            <text x={x(5.2) + 4} y={pad.t + 12} className="text-[10px] fill-gray-500">
+              Team median
+            </text>
+          </svg>
+        );
+      };
+
+      const SlowTypesChart = ({ rows, width = 900, height = 360 }) => {
+        const pad = { t: 12, r: 12, b: 40, l: 220 };
+        const innerW = width - pad.l - pad.r;
+        const innerH = height - pad.t - pad.b;
+        const yStep = innerH / rows.length;
+        const xMax = Math.max(...rows.map((r) => r.pickup + r.median)) * 1.1 || 1;
+        const x = (v) => pad.l + (innerW * v) / xMax;
+        const y = (i) => pad.t + yStep * (i + 0.5);
+        return (
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-96">
+            <line x1={pad.l} y1={height - pad.b} x2={width - pad.r} y2={height - pad.b} stroke="#e5e7eb" />
+            {[0, 0.25, 0.5, 0.75, 1].map((t, index) => {
+              const xv = xMax * t;
+              const xx = x(xv);
+              return (
+                <g key={index}>
+                  <line x1={xx} x2={xx} y1={pad.t} y2={height - pad.b} stroke="#f3f4f6" />
+                  <text x={xx} y={height - 10} className="text-[10px] fill-gray-600" textAnchor="middle">
+                    {xv.toFixed(1)}
+                  </text>
+                </g>
+              );
+            })}
+            {rows.map((row, index) => {
+              const cy = y(index);
+              const total = row.pickup + row.median;
+              return (
+                <g key={row.name}>
+                  <rect x={x(0)} y={cy - 8} width={Math.max(2, Math.abs(x(row.pickup) - x(0)))} height={16} fill="#9ca3af" />
+                  <rect x={x(row.pickup)} y={cy - 8} width={Math.max(2, Math.abs(x(total) - x(row.pickup)))} height={16} fill="#111827" />
+                  <text x={pad.l - 10} y={cy + 3} className="text-[11px] fill-gray-700" textAnchor="end">
+                    {row.name}
+                  </text>
+                  <text x={x(total) + 6} y={cy + 3} className="text-[10px] fill-gray-600">
+                    {formatHours(row.pickup)} + {formatHours(row.median)} = {formatHours(total)} · {row.n} alerts
+                  </text>
+                </g>
+              );
+            })}
+            <g transform={`translate(${width - 280},${pad.t + 6})`}>
+              <rect x="0" y="-10" width="270" height="34" fill="white" opacity="0.7" />
+              <rect x="10" y="-2" width="20" height="8" fill="#9ca3af" />
+              <text x="36" y="5" className="text-[10px] fill-gray-700">
+                Median time to analyst pickup
+              </text>
+              <rect x="10" y="14" width="20" height="8" fill="#111827" />
+              <text x="36" y="21" className="text-[10px] fill-gray-700">
+                MTTR (resolution)
+              </text>
+            </g>
+          </svg>
+        );
+      };
+
+      const ComboBarDualLine = ({ bars, lineA, lineB, labels, legendA = 'MTTR (resolve)', legendB = 'MTTD (detect)', width = 900, height = 300 }) => {
+        const pad = { t: 12, r: 12, b: 40, l: 40 };
+        const innerW = width - pad.l - pad.r;
+        const innerH = height - pad.t - pad.b;
+        const xStep = innerW / labels.length;
+        const yMax = Math.max(...bars) * 1.2;
+        const yMin = 0;
+        const yBar = (v) => pad.t + innerH * (1 - (v - yMin) / (yMax - yMin || 1));
+        const allLine = [...lineA, ...(lineB || [])].filter(Number.isFinite);
+        const lMin = Math.min(...allLine) * 0.95;
+        const lMax = Math.max(...allLine) * 1.05;
+        const yLine = (val) => pad.t + innerH * (1 - (val - lMin) / (lMax - lMin || 1));
+        const x = (i) => pad.l + xStep * (i + 0.5);
+        const poly = (arr) => arr.map((v, i) => `${x(i)},${yLine(v)}`).join(' ');
+        return (
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-80">
+            <line x1={pad.l} y1={height - pad.b} x2={width - pad.r} y2={height - pad.b} stroke="#e5e7eb" />
+            <line x1={pad.l} y1={pad.t} x2={pad.l} y2={height - pad.b} stroke="#e5e7eb" />
+            {labels.map((label, index) => {
+              const bx = x(index) - Math.min(24, xStep * 0.35);
+              const bw = Math.min(48, xStep * 0.7);
+              return (
+                <g key={label}>
+                  <rect x={bx} y={yBar(bars[index])} width={bw} height={height - pad.b - yBar(bars[index])} fill="#f3f4f6" stroke="#9ca3af" />
+                  <text x={x(index)} y={height - 10} textAnchor="middle" className="text-[10px] fill-gray-600">
+                    {label}
+                  </text>
+                </g>
+              );
+            })}
+            <polyline fill="none" stroke="#111827" strokeWidth="2" points={poly(lineA)} />
+            {lineB && <polyline fill="none" stroke="#6b7280" strokeDasharray="5 4" strokeWidth="2" points={poly(lineB)} />}
+            <g transform={`translate(${width - 260},${pad.t + 6})`}>
+              <rect x="0" y="-10" width="250" height="38" fill="white" opacity="0.7" />
+              <line x1="10" x2="38" y1="0" y2="0" stroke="#111827" strokeWidth="2" />
+              <text x="44" y="3" className="text-[10px] fill-gray-700">
+                {legendA}
+              </text>
+              <line x1="10" x2="38" y1="16" y2="16" stroke="#6b7280" strokeDasharray="5 4" strokeWidth="2" />
+              <text x="44" y="19" className="text-[10px] fill-gray-700">
+                {legendB}
+              </text>
+            </g>
+          </svg>
+        );
+      };
+
+      /* ------------------------------------------------------------------ */
+      /* UI building blocks                                                 */
+      /* ------------------------------------------------------------------ */
+      const FilterBar = ({ timeframe, setTimeframe, analyst, setAnalyst, type, setType, source, setSource }) => (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+          <div className="flex items-center gap-3 text-sm font-semibold text-gray-700 mb-3">
+            <FilterIcon className="w-4 h-4 text-gray-500" />
+            Filters
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Time frame</label>
+              <select className="w-full border rounded-lg px-2 py-2" value={timeframe} onChange={(event) => setTimeframe(Number(event.target.value))}>
+                {TIMEFRAMES.map((tf) => (
+                  <option key={tf.value} value={tf.value}>
+                    {tf.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Analyst name</label>
+              <select className="w-full border rounded-lg px-2 py-2" value={analyst} onChange={(event) => setAnalyst(event.target.value)}>
+                {ANALYST_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Alert type</label>
+              <select className="w-full border rounded-lg px-2 py-2" value={type} onChange={(event) => setType(event.target.value)}>
+                {ALERT_TYPES.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Alert source</label>
+              <select className="w-full border rounded-lg px-2 py-2" value={source} onChange={(event) => setSource(event.target.value)}>
+                {ALERT_SOURCES.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-3">Filters are illustrative. In production these limit all charts and the case drill-down list.</p>
+        </div>
+      );
+
+      const Card = ({ title, children, right }) => (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+            {right}
+          </div>
+          <div className="flex-1">{children}</div>
+        </div>
+      );
+
+      const DowChartContent = ({ data }) => {
+        const [mode, setMode] = useState('box');
+
+        const SwarmPlot = ({ data: swarmData, width = 900, height = 280 }) => {
+          const pad = { t: 12, r: 12, b: 50, l: 50 };
+          const innerW = width - pad.l - pad.r;
+          const innerH = height - pad.t - pad.b;
+          const yMaxT = Math.max(...swarmData.map((d) => d.hi));
+          const yMax = Math.max(5, Math.ceil(yMaxT / 5) * 5);
+          const xStep = innerW / swarmData.length;
+          const x = (i) => pad.l + xStep * (i + 0.5);
+          const y = (v) => pad.t + innerH * (1 - v / (yMax || 1));
+          const points = [];
+          swarmData.forEach((d, i) => {
+            const iqr = Math.max(0.1, d.q3 - d.q1);
+            const sd = iqr / 1.35;
+            const count = Math.min(d.n, 200);
+            for (let j = 0; j < count; j += 1) {
+              const u = Math.random();
+              let v;
+              if (u < 0.7) {
+                const z = Math.sqrt(-2 * Math.log(Math.max(1e-6, Math.random()))) * Math.cos(2 * Math.PI * Math.random());
+                v = d.median + z * sd;
+              } else if (u < 0.85) {
+                v = d.lo + Math.random() * Math.max(0, d.q1 - d.lo);
+              } else {
+                v = d.q3 + Math.random() * Math.max(0, d.hi - d.q3);
+              }
+              v = Math.min(d.hi, Math.max(d.lo, v));
+              const jitter = (Math.random() - 0.5) * 12;
+              points.push({ x: x(i) + jitter, y: y(v) });
+            }
+          });
+          const yTicks = Array.from({ length: Math.floor(yMax / 5) + 1 }, (_, k) => k * 5);
+          return (
+            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-80">
+              <line x1={pad.l} y1={height - pad.b} x2={width - pad.r} y2={height - pad.b} stroke="#e5e7eb" />
+              <line x1={pad.l} y1={pad.t} x2={pad.l} y2={height - pad.b} stroke="#e5e7eb" />
+              {yTicks.map((tick) => {
+                const yy = y(tick);
+                return (
+                  <g key={tick}>
+                    <line x1={pad.l} x2={width - pad.r} y1={yy} y2={yy} stroke="#f3f4f6" />
+                    <text x={pad.l - 8} y={yy + 3} className="text-[10px] fill-gray-600" textAnchor="end">
+                      {tick}
+                    </text>
+                  </g>
+                );
+              })}
+              <text x={12} y={pad.t + innerH / 2} transform={`rotate(-90 12 ${pad.t + innerH / 2})`} className="text-[10px] fill-gray-600">
+                Hours
+              </text>
+              {points.map((point, idx) => (
+                <circle key={idx} cx={point.x} cy={point.y} r="2" fill="#111827" opacity="0.55" />
+              ))}
+              {swarmData.map((d, i) => (
+                <text key={d.label} x={x(i)} y={height - 10} className="text-[10px] fill-gray-600" textAnchor="middle">
+                  {d.label}
+                </text>
+              ))}
+            </svg>
+          );
+        };
+
+        return (
+          <div>
+            <button onClick={() => setMode(mode === 'box' ? 'swarm' : 'box')} className="text-xs mb-2 px-2 py-1 border rounded">
+              {mode === 'box' ? 'Show swarm plot' : 'Show box & whiskers'}
+            </button>
+            {mode === 'box' ? <BoxPlotChart data={data} /> : <SwarmPlot data={data} />}
+            <ul className="text-xs text-gray-600 mt-3 list-disc list-inside">
+              <li>Toggle between box & whiskers and swarm plot to explore distribution.</li>
+              <li>Use this to identify staffing or workflow patterns by day.</li>
+            </ul>
+          </div>
+        );
+      };
+
+      const AnalystBreakdownContent = ({ analysts }) => {
+        const [mode, setMode] = useState('mttr');
+        const rowsCounts = analysts.map((analyst) => ({ name: analyst.name, value: analyst.n }));
+        const countsChart = () => {
+          const pad = { t: 12, r: 12, b: 40, l: 120 };
+          const width = 900;
+          const height = 320;
+          const innerW = width - pad.l - pad.r;
+          const innerH = height - pad.t - pad.b;
+          const yStep = innerH / rowsCounts.length;
+          const max = Math.max(...rowsCounts.map((row) => row.value));
+          return (
+            <svg viewBox="0 0 900 320" className="w-full h-80">
+              {rowsCounts.map((row, index) => {
+                const y = pad.t + yStep * (index + 0.5);
+                const xWidth = (row.value / max) * innerW;
+                return (
+                  <g key={row.name}>
+                    <rect x={pad.l} y={y - 8} width={xWidth} height={16} fill="#f3f4f6" stroke="#9ca3af" />
+                    <text x={pad.l - 8} y={y + 3} textAnchor="end" className="text-[11px] fill-gray-700">
+                      {row.name}
+                    </text>
+                    <text x={pad.l + xWidth + 6} y={y + 3} className="text-[10px] fill-gray-600">
+                      {row.value} alerts
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          );
+        };
+
+        return (
+          <div>
+            <button onClick={() => setMode(mode === 'mttr' ? 'counts' : 'mttr')} className="text-xs mb-2 px-2 py-1 border rounded">
+              {mode === 'mttr' ? 'Show alerts resolved per analyst' : 'Show MTTR per analyst'}
+            </button>
+            {mode === 'mttr' ? <HorizontalIQRBars rows={analysts} /> : countsChart()}
+            <ul className="text-xs text-gray-600 mt-3 list-disc list-inside">
+              <li>Toggle to view either resolution speed (MTTR) or alert workload per analyst.</li>
+              <li>Use this to balance workloads and pair coaching between analysts.</li>
+            </ul>
+          </div>
+        );
+      };
+
+      /* ------------------------------------------------------------------ */
+      /* Main dashboard                                                     */
+      /* ------------------------------------------------------------------ */
+      function DashboardApp() {
+        const [timeframe, setTimeframe] = useState(TIMEFRAMES[TIMEFRAMES.length - 1].value);
+        const [analyst, setAnalyst] = useState('All');
+        const [type, setType] = useState('All');
+        const [source, setSource] = useState('All');
+
+        const { cust, ind, lbls, bars, pick, apa, pctWithin1SD, bandLow, bandHigh } = useTimeframeSlices(dashboardData, timeframe);
+
+        const latestCust = cust[cust.length - 1];
+        const latestInd = ind[ind.length - 1];
+        const latestPick = pick[pick.length - 1];
+        const latestApa = apa[apa.length - 1];
+        const deltaIdx = Math.max(0, cust.length - 5);
+        const pickupDeltaIdx = Math.max(0, pick.length - 5);
+        const apaPrevIdx = Math.max(0, apa.length - 2);
+
+        const kpis = [
+          {
+            label: 'Your MTTR (Weekly Median)',
+            value: formatHours(latestCust),
+            delta: `${percentChange(latestCust, cust[deltaIdx])}% vs last 4w`,
+            trend: latestCust <= cust[deltaIdx] ? 'down' : 'up',
+            sub: `Industry median: ${formatHours(latestInd)}`,
+          },
+          {
+            label: 'Resolved within industry +1 SD',
+            value: `${pctWithin1SD}%`,
+            delta: 'target ≥ 85%',
+            trend: pctWithin1SD >= 85 ? 'up' : 'down',
+            sub: 'Tickets closed at or faster than one standard deviation above industry median',
+          },
+          {
+            label: 'Median time to analyst pickup',
+            value: formatHours(latestPick),
+            delta: `${percentChange(latestPick, pick[pickupDeltaIdx])}% vs last 4w`,
+            trend: latestPick <= pick[pickupDeltaIdx] ? 'down' : 'up',
+            sub: 'From customer assignment to analyst accepting the alert',
+          },
+          {
+            label: 'Alerts per analyst (index)',
+            value: latestApa.toFixed(1),
+            delta: `${percentChange(apa[apa.length - 1], apa[apaPrevIdx])}%`,
+            trend: apa[apa.length - 1] >= apa[apaPrevIdx] ? 'up' : 'down',
+            sub: 'Per-week alert load per active analyst',
+          },
+        ];
+
+        const filteredAnalysts = useMemo(
+          () => (analyst === 'All' ? dashboardData.analystsBase : dashboardData.analystsBase.filter((entry) => entry.name === analyst)),
+          [analyst]
+        );
+
+        return (
+          <div className="w-full min-h-screen bg-gradient-to-b from-gray-50 to-white text-gray-900 font-sans">
+            <div className="max-w-7xl mx-auto px-4 py-6 md:py-10">
+              <header className="mb-4 md:mb-6">
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Your Team Performance</h1>
+                <p className="text-sm text-gray-600 mt-1">
+                  Focus: help your team resolve Critical Start–assigned alerts faster. Comparisons use your sector&apos;s median and typical range.
+                </p>
+                <p className="text-xs text-gray-500 mt-1">This dashboard does not measure Critical Start’s internal detection or triage time — it begins when the alert is assigned into your queue.</p>
+              </header>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+                <p className="text-sm text-gray-700">
+                  This dashboard focuses on alerts that are detected by Critical Start’s SOC and then assigned to your organization for review and resolution. It helps you understand where time is being spent once these alerts reach your
+                  queue. Look for patterns in pickup time, resolution time, workload, and slow alert types. Use these insights to adjust staffing, coaching, and playbooks.
+                </p>
+                <p className="text-sm text-gray-600 mt-2">Tip: Start by checking which factor is rising when MTTR rises—pickup delays, workload pressure, or specific alert types.</p>
+              </div>
+
+              <FilterBar timeframe={timeframe} setTimeframe={setTimeframe} analyst={analyst} setAnalyst={setAnalyst} type={type} setType={setType} source={source} setSource={setSource} />
+
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {kpis.map((kpi, index) => (
+                  <div key={kpi.label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-500">{kpi.label}</span>
+                      {index === 0 ? (
+                        <Clock className="w-4 h-4 text-gray-400" />
+                      ) : index === 1 ? (
+                        <Activity className="w-4 h-4 text-gray-400" />
+                      ) : index === 2 ? (
+                        <Activity className="w-4 h-4 text-gray-400" />
+                      ) : (
+                        <Users className="w-4 h-4 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-2xl font-semibold">{kpi.value}</span>
+                      {kpi.delta && (
+                        <span className={`text-xs inline-flex items-center gap-1 ${kpi.trend === 'up' ? 'text-emerald-600' : kpi.trend === 'down' ? 'text-rose-600' : 'text-gray-500'}`}>
+                          {kpi.trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : kpi.trend === 'down' ? <ArrowDownRight className="w-3 h-3" /> : null}
+                          {kpi.delta}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">{kpi.sub}</div>
+                  </div>
+                ))}
+              </section>
+
+              <section className="flex flex-col gap-6">
+                <Card title="Your MTTR vs Industry (Weekly, weekdays-only)" right={<LineChart className="w-4 h-4 text-gray-400" />}>
+                  <LineBandChart xLabels={lbls} lineA={cust} lineB={ind} bandLow={bandLow} bandHigh={bandHigh} />
+                  <ul className="text-xs text-gray-600 mt-3 list-disc list-inside">
+                    <li>Read the solid line as your weekly median time to resolve. Lower is better.</li>
+                    <li>Use the dashed line and shaded band as your peer benchmark. If you trend above the band, review playbooks or staffing.</li>
+                    <li>Action: click a high week to drill into cases and look for handoff gaps or after-hours delays.</li>
+                  </ul>
+                </Card>
+
+                <Card title="Your MTTR by Day of Week" right={<BarChart3 className="w-4 h-4 text-gray-400" />}>
+                  <DowChartContent data={dashboardData.dayOfWeek} />
+                </Card>
+
+                <Card title="Analyst Breakdown" right={<BarChart3 className="w-4 h-4 text-gray-400" />}>
+                  <AnalystBreakdownContent analysts={filteredAnalysts} />
+                </Card>
+
+                <Card title="Workload vs Resolution Speed" right={<Activity className="w-4 h-4 text-gray-400" />}>
+                  <ComboBarDualLine bars={apa} lineA={cust} lineB={pick} labels={lbls} legendA="MTTR (resolve)" legendB="Median time to analyst pickup" />
+                  <ul className="text-xs text-gray-600 mt-3 list-disc list-inside">
+                    <li>Bars show alerts per analyst (weekly index).</li>
+                    <li>If the MTTR line rises while bars rise, watch for batching or handoff bottlenecks.</li>
+                    <li>Use the KPI “Median time to analyst pickup” to check whether queue acceptance is causing delays.</li>
+                    <li>Action: when workload spikes, add short triage shifts to keep pickup times steady.</li>
+                  </ul>
+                </Card>
+
+                <Card title="Top 10 Slowest Alert Types (Pickup + MTTR)">
+                  <SlowTypesChart rows={dashboardData.alertTypesData.slice().sort((a, b) => b.pickup + b.median - (a.pickup + a.median)).slice(0, 10)} />
+                  <ul className="text-xs text-gray-600 mt-3 list-disc list-inside">
+                    <li>Stacked bar shows total time: analyst pickup plus time to resolve. Lower is better.</li>
+                    <li>Sort is by total time. Use this to prioritize playbooks and training for the slowest types.</li>
+                    <li>Action: pick one alert type this week and pair a fast analyst with a slower one on those cases.</li>
+                  </ul>
+                </Card>
+              </section>
+
+              <div className="mt-6 text-xs text-gray-500">
+                <p>Implementation tips: compute medians weekly excluding weekends; band uses the sector&apos;s middle 50%; add percentile rank and drill-down to cases; filters should constrain queries at the API level.</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(<DashboardApp />);
+    </script>
+  </body>
+</html>
