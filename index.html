@@ -502,7 +502,7 @@
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Time frame</label>
-              <select className="w-full border rounded-lg px-2 py-2" value={timeframe} onChange={(event) => setTimeframe(Number(event.target.value))}>
+                <select className="w-full border border-gray-400 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:border-gray-600" value={timeframe} onChange={(event) => setTimeframe(Number(event.target.value))}>
                 {TIMEFRAMES.map((tf) => (
                   <option key={tf.value} value={tf.value}>
                     {tf.label}
@@ -512,7 +512,7 @@
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Analyst name</label>
-              <select className="w-full border rounded-lg px-2 py-2" value={analyst} onChange={(event) => setAnalyst(event.target.value)}>
+                <select className="w-full border border-gray-400 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:border-gray-600" value={analyst} onChange={(event) => setAnalyst(event.target.value)}>
                 {ANALYST_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -522,7 +522,7 @@
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Alert type</label>
-              <select className="w-full border rounded-lg px-2 py-2" value={type} onChange={(event) => setType(event.target.value)}>
+                <select className="w-full border border-gray-400 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:border-gray-600" value={type} onChange={(event) => setType(event.target.value)}>
                 {ALERT_TYPES.map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -532,7 +532,7 @@
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Alert source</label>
-              <select className="w-full border rounded-lg px-2 py-2" value={source} onChange={(event) => setSource(event.target.value)}>
+                <select className="w-full border border-gray-400 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:border-gray-600" value={source} onChange={(event) => setSource(event.target.value)}>
                 {ALERT_SOURCES.map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -621,7 +621,7 @@
 
         return (
           <div>
-            <button onClick={() => setMode(mode === 'box' ? 'swarm' : 'box')} className="text-xs mb-2 px-2 py-1 border rounded">
+              <button onClick={() => setMode(mode === 'box' ? 'swarm' : 'box')} className="text-xs mb-2 px-2 py-1 border border-gray-400 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-600">
               {mode === 'box' ? 'Show swarm plot' : 'Show box & whiskers'}
             </button>
             {mode === 'box' ? <BoxPlotChart data={data} /> : <SwarmPlot data={data} />}
@@ -667,7 +667,7 @@
 
         return (
           <div>
-            <button onClick={() => setMode(mode === 'mttr' ? 'counts' : 'mttr')} className="text-xs mb-2 px-2 py-1 border rounded">
+              <button onClick={() => setMode(mode === 'mttr' ? 'counts' : 'mttr')} className="text-xs mb-2 px-2 py-1 border border-gray-400 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-600">
               {mode === 'mttr' ? 'Show alerts resolved per analyst' : 'Show MTTR per analyst'}
             </button>
             {mode === 'mttr' ? <HorizontalIQRBars rows={analysts} /> : countsChart()}
@@ -759,7 +759,7 @@
                 {kpis.map((kpi, index) => (
                   <div key={kpi.label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-500">{kpi.label}</span>
+                        <span className="text-xs font-medium text-gray-500">{kpi.label}</span>
                       {index === 0 ? (
                         <Clock className="w-4 h-4 text-gray-400" />
                       ) : index === 1 ? (
@@ -773,7 +773,7 @@
                     <div className="mt-2 flex items-baseline gap-2">
                       <span className="text-2xl font-semibold">{kpi.value}</span>
                       {kpi.delta && (
-                        <span className={`text-xs inline-flex items-center gap-1 ${kpi.trend === 'up' ? 'text-emerald-600' : kpi.trend === 'down' ? 'text-rose-600' : 'text-gray-500'}`}>
+                          <span className={`text-xs inline-flex items-center gap-1 ${kpi.trend === 'up' ? 'text-emerald-800' : kpi.trend === 'down' ? 'text-rose-600' : 'text-gray-500'}`}>
                           {kpi.trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : kpi.trend === 'down' ? <ArrowDownRight className="w-3 h-3" /> : null}
                           {kpi.delta}
                         </span>
