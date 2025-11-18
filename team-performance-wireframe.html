@@ -932,9 +932,9 @@
                   <p className="text-xs font-semibold tracking-[0.3em]" style={{ color: BRAND.sky }}>
                     Critical Start MDR Operations
                   </p>
-                  <h1 className="text-3xl font-bold tracking-tight" style={{ color: BRAND.charcoal }}>
-                    Your Team Performance dashboard.
-                  </h1>
+                    <h1 className="text-3xl font-bold tracking-tight" style={{ color: BRAND.charcoal }}>
+                      Your Team Performance
+                    </h1>
                   <p className="text-sm brand-muted">Show how your analysts pick up, investigate, and resolve every validated alert—then coach the next action with confidence.</p>
                   <p className="text-sm brand-muted">
                     Once our U.S.-based, 24/7/365 SOC hands you a validated alert, this view shows how your team responds against sector peers. Tie every insight to staffing, workflow, and runway so follow-up
@@ -976,7 +976,7 @@
               </section>
 
               <section className="flex flex-col gap-6">
-                <Card title="Stopping threats today, preparing for tomorrow" eyebrow="MTTR VS SECTOR" right={<BrandIcon icon="fa-solid fa-chart-line" label="Line chart" variant="secondary" />}>
+                  <Card title="MTTR vs sector benchmarks" eyebrow="MTTR VS SECTOR" right={<BrandIcon icon="fa-solid fa-chart-line" label="Line chart" variant="secondary" />}>
                   <LineBandChart xLabels={lbls} lineA={cust} lineB={ind} bandLow={bandLow} bandHigh={bandHigh} />
                     <ul className="text-xs brand-muted mt-3 list-disc list-inside">
                       <li>Solid line = your weekly MTTR. Keep it inside the shaded sector Q1–Q3 band and ±1σ guardrails to stay confident in your coverage.</li>
@@ -985,15 +985,15 @@
                     </ul>
                 </Card>
 
-                  <Card title="Secure every moment with always-on vigilance" eyebrow="DAY-OF-WEEK STORY" right={<BrandIcon icon="fa-regular fa-chart-bar" label="Bar chart" variant="secondary" />}>
+                    <Card title="MTTR spread by day of week" eyebrow="DAY-OF-WEEK STORY" right={<BrandIcon icon="fa-regular fa-chart-bar" label="Bar chart" variant="secondary" />}>
                     <DowChartContent data={dayOfWeekStats} />
                   </Card>
 
-                  <Card title="Human intuition meets cutting-edge tech" eyebrow="ANALYST BREAKDOWN" right={<BrandIcon icon="fa-solid fa-people-group" label="Analyst" variant="secondary" />}>
+                    <Card title="Analyst performance distribution" eyebrow="ANALYST BREAKDOWN" right={<BrandIcon icon="fa-solid fa-people-group" label="Analyst" variant="secondary" />}>
                     <AnalystBreakdownContent analysts={analystStats} />
                   </Card>
 
-                <Card title="Less backlog, more breathing room" eyebrow="WORKLOAD + MTTR" right={<BrandIcon icon="fa-solid fa-wave-square" label="Activity" variant="secondary" />}>
+                  <Card title="Workload vs MTTR and pickup" eyebrow="WORKLOAD + MTTR" right={<BrandIcon icon="fa-solid fa-wave-square" label="Activity" variant="secondary" />}>
                   <ComboBarDualLine bars={apa} lineA={cust} lineB={pick} labels={lbls} />
                   <ul className="text-xs brand-muted mt-3 list-disc list-inside">
                     <li>Bars show workload per analyst; the solid line shows MTTR, and the dashed line tracks pickup speed.</li>
@@ -1002,7 +1002,7 @@
                   </ul>
                 </Card>
 
-                  <Card title="Custom responses that turn complexity into clarity" eyebrow="SLOWEST ALERT TYPES">
+                    <Card title="Slowest alert types by pickup and MTTR" eyebrow="SLOWEST ALERT TYPES">
                     <SlowTypesChart rows={slowestAlertTypes} />
                   <ul className="text-xs brand-muted mt-3 list-disc list-inside">
                     <li>Stacked bars combine pickup (light) and MTTR (dark) for the ten slowest alert types in your queue.</li>
