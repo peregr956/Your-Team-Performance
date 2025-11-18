@@ -124,15 +124,22 @@
     <script type="text/babel">
       const { useMemo, useState } = React;
 
-      const BRAND = {
-        sky: '#009CDE',
-        navy: '#004C97',
-        charcoal: '#343741',
-        plum: '#702F8A',
-        crimson: '#EF3340',
-        flame: '#FF6A14',
-        slate: '#03162C',
-      };
+        const BRAND = {
+          sky: '#009CDE',
+          navy: '#004C97',
+          charcoal: '#343741',
+          plum: '#702F8A',
+          crimson: '#EF3340',
+          flame: '#FF6A14',
+          slate: '#03162C',
+        };
+
+        const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        const ALERT_TYPE_OPTIONS = ['Phishing', 'Malware', 'Endpoint', 'Network', 'Insider Threat'];
+        const ALERT_SOURCE_OPTIONS = ['EDR', 'Email', 'SIEM', 'Network Sensor', 'Cloud Provider'];
+        const ALERT_TYPES = ['All', ...ALERT_TYPE_OPTIONS];
+        const ALERT_SOURCES = ['All', ...ALERT_SOURCE_OPTIONS];
 
       const BrandIcon = ({ icon, label, variant = 'primary' }) => {
         const background = variant === 'secondary' ? 'rgba(255, 106, 20, 0.15)' : 'rgba(0, 156, 222, 0.12)';
@@ -196,106 +203,180 @@
         return suffix ? `${formatted} ${suffix}` : formatted;
       };
 
+        const median = (values) => {
+          if (!values.length) return 0;
+          const sorted = values.slice().sort((a, b) => a - b);
+          const mid = Math.floor(sorted.length / 2);
+          return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        };
+
+        const quantile = (values, q) => {
+          if (!values.length) return 0;
+          const sorted = values.slice().sort((a, b) => a - b);
+          const pos = (sorted.length - 1) * q;
+          const base = Math.floor(pos);
+          const rest = pos - base;
+          return sorted[base + 1] !== undefined ? sorted[base] + rest * (sorted[base + 1] - sorted[base]) : sorted[base];
+        };
+
+        const calculateBoxStatsFor = (values) => {
+          if (!values.length) {
+            return { q1: 0, median: 0, q3: 0, lo: 0, hi: 0 };
+          }
+          return {
+            q1: quantile(values, 0.25),
+            median: median(values),
+            q3: quantile(values, 0.75),
+            lo: Math.min(...values),
+            hi: Math.max(...values),
+          };
+        };
+
+        const groupBy = (items, keyFn) => {
+          const map = new Map();
+          items.forEach((item) => {
+            const key = keyFn(item);
+            if (!map.has(key)) {
+              map.set(key, []);
+            }
+            map.get(key).push(item);
+          });
+          return map;
+        };
+
+        const buildDayOfWeekStats = (alerts) =>
+          DAY_LABELS.map((label) => {
+            const subset = alerts.filter((alert) => alert.dayOfWeek === label);
+            const stats = calculateBoxStatsFor(subset.map((alert) => alert.mttr));
+            return { label, n: subset.length, ...stats };
+          });
+
+        const buildAnalystStats = (alerts) => {
+          const grouped = groupBy(alerts, (alert) => alert.analyst);
+          return Array.from(grouped.entries()).map(([name, rows]) => ({
+            name,
+            n: rows.length,
+            ...calculateBoxStatsFor(rows.map((row) => row.mttr)),
+          }));
+        };
+
+        const buildAlertTypeStats = (alerts) => {
+          const grouped = groupBy(alerts, (alert) => alert.type);
+          return Array.from(grouped.entries()).map(([name, rows]) => ({
+            name,
+            n: rows.length,
+            pickup: median(rows.map((row) => row.pickup)),
+            ...calculateBoxStatsFor(rows.map((row) => row.mttr)),
+          }));
+        };
+
       /* ------------------------------------------------------------------ */
       /* Synthetic dashboard data                                           */
       /* ------------------------------------------------------------------ */
-      const createDashboardData = ({ weeks, seed }) => {
-        const random = createSeededRandom(seed);
-
-        const weekLabels = range(weeks, (_, index) => {
-          const date = new Date();
-          date.setDate(date.getDate() - (weeks - index) * 7);
-          return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
-        });
-
-        const industryMedian = range(weeks, (_, i) => 5.4 - 0.05 * i + (random() - 0.5) * 0.1);
-        const industryQ1 = industryMedian.map((value) => value - 1.1 + (random() - 0.5) * 0.05);
-        const industryQ3 = industryMedian.map((value) => value + 1.1 + (random() - 0.5) * 0.05);
-        const customerMedian = range(weeks, (_, i) => 5.8 - 0.12 * i + (random() - 0.5) * 0.2);
-        const alertsPerWeek = range(weeks, () => 30 + Math.floor(random() * 40));
-        const pickupMedian = range(weeks, (_, i) => Math.max(0.2, 1.6 - 0.07 * i + (random() - 0.5) * 0.18));
-        const analystsActive = range(weeks, () => 5 + Math.floor(random() * 3));
-
-        const dayOfWeek = [
-          { label: 'Monday', n: 400, q1: 4.2, median: 5.1, q3: 6.2, lo: 2, hi: 11 },
-          { label: 'Tuesday', n: 410, q1: 4.3, median: 5.2, q3: 6.4, lo: 1.7, hi: 12 },
-          { label: 'Wednesday', n: 405, q1: 4.1, median: 5, q3: 6.3, lo: 1.8, hi: 12.5 },
-          { label: 'Thursday', n: 398, q1: 4.2, median: 5.1, q3: 6.5, lo: 1.6, hi: 13 },
-          { label: 'Friday', n: 390, q1: 4.3, median: 5.3, q3: 6.7, lo: 1.7, hi: 15 },
-          { label: 'Saturday', n: 280, q1: 6.5, median: 8.2, q3: 10.4, lo: 3, hi: 18 },
-          { label: 'Sunday', n: 270, q1: 6.7, median: 8.5, q3: 10.6, lo: 3, hi: 19 },
-        ];
-
-        const alertTypesData = range(30, (_, i) => {
-          const base = 4 + random() * 8;
-          return {
-            name: `Alert Type ${i + 1}`,
-            median: +(base + (random() - 0.5)).toFixed(1),
-            q1: +(base - 1).toFixed(1),
-            q3: +(base + 1).toFixed(1),
-            pickup: +(0.4 + random() * 2.2).toFixed(1),
-            n: Math.floor(20 + random() * 80),
+        const createDashboardData = ({ weeks, seed }) => {
+          const random = createSeededRandom(seed);
+          const gaussian = () => {
+            const u = Math.max(random(), 1e-6);
+            const v = Math.max(random(), 1e-6);
+            return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
           };
-        });
 
-        const analystsBase = ['Avery', 'Blake', 'Casey', 'Devin', 'Emery', 'Flynn', 'Gray', 'Hayes', 'Indy', 'Jules', 'Kai', 'Logan'].map((name) => {
-          const base = 5.4 + (random() - 0.5);
-          return {
+          const weekLabels = range(weeks, (_, index) => {
+            const date = new Date();
+            date.setDate(date.getDate() - (weeks - index) * 7);
+            return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
+          });
+
+          const industryMedian = range(weeks, (_, i) => 5.4 - 0.05 * i + (random() - 0.5) * 0.1);
+          const industryQ1 = industryMedian.map((value) => value - 1.1 + (random() - 0.5) * 0.05);
+          const industryQ3 = industryMedian.map((value) => value + 1.1 + (random() - 0.5) * 0.05);
+          const customerMedian = range(weeks, (_, i) => 5.8 - 0.12 * i + (random() - 0.5) * 0.2);
+          const pickupTargets = range(weeks, (_, i) => Math.max(0.2, 1.6 - 0.07 * i + (random() - 0.5) * 0.18));
+          const alertsPerWeek = range(weeks, () => 30 + Math.floor(random() * 40));
+
+          const analystsBase = ['Avery', 'Blake', 'Casey', 'Devin', 'Emery', 'Flynn', 'Gray', 'Hayes', 'Indy', 'Jules', 'Kai', 'Logan'].map((name) => ({
             name,
-            q1: base - 0.6,
-            median: base + (random() - 0.5) * 0.4,
-            q3: base + 0.7,
-            lo: base - 1.5,
-            hi: base + 1.8,
-            n: 40 + Math.floor(random() * 80),
-          };
-        });
+          }));
 
-        return {
-          totalWeeks: weeks,
-          weekLabels,
-          industryMedian,
-          industryQ1,
-          industryQ3,
-          customerMedian,
-          alertsPerWeek,
-          pickupMedian,
-          analystsActive,
-          dayOfWeek,
-          alertTypesData,
-          analystsBase,
+          const alerts = [];
+          alertsPerWeek.forEach((count, weekIndex) => {
+            for (let i = 0; i < count; i += 1) {
+              const analyst = analystsBase[Math.floor(random() * analystsBase.length)].name;
+              const type = ALERT_TYPE_OPTIONS[Math.floor(random() * ALERT_TYPE_OPTIONS.length)];
+              const source = ALERT_SOURCE_OPTIONS[Math.floor(random() * ALERT_SOURCE_OPTIONS.length)];
+              const dayOfWeek = DAY_LABELS[Math.floor(random() * DAY_LABELS.length)];
+              const mttr = Math.max(0.5, customerMedian[weekIndex] + gaussian() * 0.8);
+              const pickup = Math.max(0.1, pickupTargets[weekIndex] + gaussian() * 0.25);
+              alerts.push({
+                id: `${weekIndex}-${i}`,
+                weekIndex,
+                weekLabel: weekLabels[weekIndex],
+                analyst,
+                type,
+                source,
+                dayOfWeek,
+                mttr,
+                pickup,
+              });
+            }
+          });
+
+          return {
+            totalWeeks: weeks,
+            weekLabels,
+            industryMedian,
+            industryQ1,
+            industryQ3,
+            customerMedian,
+            alerts,
+            analystsBase,
+          };
         };
-      };
 
       const dashboardData = createDashboardData({ weeks: 12, seed: 1337 });
 
-      const TIMEFRAMES = [
-        { label: 'Last 4 weeks', value: 4 },
-        { label: 'Last 8 weeks', value: 8 },
-        { label: 'Last 12 weeks', value: 12 },
-      ];
-      const ANALYST_OPTIONS = ['All', ...dashboardData.analystsBase.map((analyst) => analyst.name)];
-      const ALERT_TYPES = ['All', 'Phishing', 'Malware', 'Endpoint', 'Network', 'Insider Threat'];
-      const ALERT_SOURCES = ['All', 'EDR', 'Email', 'SIEM', 'Network Sensor', 'Cloud Provider'];
+        const TIMEFRAMES = [
+          { label: 'Last 4 weeks', value: 4 },
+          { label: 'Last 8 weeks', value: 8 },
+          { label: 'Last 12 weeks', value: 12 },
+        ];
+        const ANALYST_OPTIONS = ['All', ...dashboardData.analystsBase.map((analyst) => analyst.name)];
 
-      const useTimeframeSlices = (dataset, timeframe) =>
-        useMemo(() => {
-          const start = Math.max(0, dataset.totalWeeks - timeframe);
-          const slice = (array) => array.slice(start);
-          const cust = slice(dataset.customerMedian);
-          const ind = slice(dataset.industryMedian);
-          const lbls = slice(dataset.weekLabels);
-          const bars = slice(dataset.alertsPerWeek);
-          const pick = slice(dataset.pickupMedian);
-          const active = slice(dataset.analystsActive);
-          const bandLow = slice(dataset.industryQ1);
-          const bandHigh = slice(dataset.industryQ3);
-          const apa = active.map((value, index) => (value ? +(bars[index] / value).toFixed(1) : 0));
-          const sd = calculateStdDev(ind);
-          const pctWithin1SD = cust.length ? Math.round((cust.filter((value, index) => value <= ind[index] + sd).length / cust.length) * 100) : 0;
+        const useTimeframeSlices = (dataset, timeframe, analystFilter, typeFilter, sourceFilter) =>
+          useMemo(() => {
+            const start = Math.max(0, dataset.totalWeeks - timeframe);
+            const weekIndices = range(timeframe, (_, index) => start + index);
+            const lbls = weekIndices.map((index) => dataset.weekLabels[index]);
 
-          return { cust, ind, lbls, bars, pick, active, apa, pctWithin1SD, bandLow, bandHigh };
-        }, [dataset, timeframe]);
+            const matchesAnalyst = (alert) => analystFilter === 'All' || alert.analyst === analystFilter;
+            const matchesType = (alert) => typeFilter === 'All' || alert.type === typeFilter;
+            const matchesSource = (alert) => sourceFilter === 'All' || alert.source === sourceFilter;
+
+            const filteredAlerts = dataset.alerts.filter((alert) => alert.weekIndex >= start && matchesAnalyst(alert) && matchesType(alert) && matchesSource(alert));
+
+            const alertsByWeek = weekIndices.map((weekIndex) => filteredAlerts.filter((alert) => alert.weekIndex === weekIndex));
+            const weeklyMedian = (weekAlerts, accessor) => {
+              const values = weekAlerts.map(accessor).filter((value) => Number.isFinite(value));
+              return values.length ? median(values) : 0;
+            };
+
+            const cust = alertsByWeek.map((weekAlerts) => weeklyMedian(weekAlerts, (alert) => alert.mttr));
+            const pick = alertsByWeek.map((weekAlerts) => weeklyMedian(weekAlerts, (alert) => alert.pickup));
+            const bars = alertsByWeek.map((weekAlerts) => weekAlerts.length);
+            const active = alertsByWeek.map((weekAlerts) => new Set(weekAlerts.map((alert) => alert.analyst)).size);
+            const apa = active.map((value, index) => (value ? +(bars[index] / value).toFixed(1) : 0));
+
+            const slice = (array) => array.slice(start, start + timeframe);
+            const ind = slice(dataset.industryMedian);
+            const bandLow = slice(dataset.industryQ1);
+            const bandHigh = slice(dataset.industryQ3);
+            const sd = calculateStdDev(ind);
+            const validWeeks = cust.filter((value) => value > 0).length;
+            const withinBand = cust.filter((value, index) => value > 0 && value <= ind[index] + sd).length;
+            const pctWithin1SD = validWeeks ? Math.round((withinBand / validWeeks) * 100) : 0;
+
+            return { cust, ind, lbls, bars, pick, active, apa, pctWithin1SD, bandLow, bandHigh, filteredAlerts, weekIndices };
+          }, [dataset, timeframe, analystFilter, typeFilter, sourceFilter]);
 
       /* ------------------------------------------------------------------ */
       /* Chart components                                                   */
@@ -442,7 +523,10 @@
         );
       };
 
-      const SlowTypesChart = ({ rows, width = 900, height = 360 }) => {
+        const SlowTypesChart = ({ rows, width = 900, height = 360 }) => {
+          if (!rows.length) {
+            return <p className="text-xs brand-muted">No alert types match the current filters.</p>;
+          }
         const pad = { t: 12, r: 12, b: 40, l: 220 };
         const innerW = width - pad.l - pad.r;
         const innerH = height - pad.t - pad.b;
@@ -601,7 +685,7 @@
               </select>
             </div>
           </div>
-          <p className="text-xs brand-muted">In production, these filters will scope every KPI, chart, and case drill-down before data renders.</p>
+            <p className="text-xs brand-muted">These filters scope every KPI, chart, and case drill-down before data renders.</p>
         </div>
       );
 
@@ -630,8 +714,9 @@
         </button>
       );
 
-      const DowChartContent = ({ data }) => {
-        const [mode, setMode] = useState('box');
+        const DowChartContent = ({ data }) => {
+          const [mode, setMode] = useState('box');
+          const hasData = data.some((entry) => entry.n > 0);
 
         const SwarmPlot = ({ data: swarmData, width = 900, height = 280 }) => {
           const pad = { t: 12, r: 12, b: 50, l: 50 };
@@ -696,24 +781,31 @@
           );
         };
 
-        return (
-          <div>
-            <ToggleButton active={mode === 'box'} onClick={() => setMode(mode === 'box' ? 'swarm' : 'box')}>
-              {mode === 'box' ? 'Show swarm plot' : 'Show box & whiskers'}
-            </ToggleButton>
-            {mode === 'box' ? <BoxPlotChart data={data} /> : <SwarmPlot data={data} />}
-            <ul className="text-xs brand-muted mt-3 list-disc list-inside">
-              <li>Spot the days where pickup, workload, and MTTR swings widen before backlog builds.</li>
-              <li>Pair higher-spread days with automation or surge analysts to keep promises to the business.</li>
-              <li>Weekends trending hot? Shift playbooks or escalation windows, not just staffing numbers.</li>
-            </ul>
-          </div>
-        );
+          return (
+            <div>
+              {hasData ? (
+                <>
+                  <ToggleButton active={mode === 'box'} onClick={() => setMode(mode === 'box' ? 'swarm' : 'box')}>
+                    {mode === 'box' ? 'Show swarm plot' : 'Show box & whiskers'}
+                  </ToggleButton>
+                  {mode === 'box' ? <BoxPlotChart data={data} /> : <SwarmPlot data={data} />}
+                  <ul className="text-xs brand-muted mt-3 list-disc list-inside">
+                    <li>Spot the days where pickup, workload, and MTTR swings widen before backlog builds.</li>
+                    <li>Pair higher-spread days with automation or surge analysts to keep promises to the business.</li>
+                    <li>Weekends trending hot? Shift playbooks or escalation windows, not just staffing numbers.</li>
+                  </ul>
+                </>
+              ) : (
+                <p className="text-xs brand-muted">No alerts match the current filters for this view.</p>
+              )}
+            </div>
+          );
       };
 
-      const AnalystBreakdownContent = ({ analysts }) => {
-        const [mode, setMode] = useState('mttr');
-        const rowsCounts = analysts.map((analyst) => ({ name: analyst.name, value: analyst.n }));
+        const AnalystBreakdownContent = ({ analysts }) => {
+          const [mode, setMode] = useState('mttr');
+          const rowsCounts = analysts.map((analyst) => ({ name: analyst.name, value: analyst.n }));
+          const hasData = analysts.length > 0 && analysts.some((analyst) => analyst.n > 0);
         const countsChart = () => {
           const pad = { t: 12, r: 12, b: 40, l: 120 };
           const width = 900;
@@ -743,19 +835,25 @@
           );
         };
 
-        return (
-          <div>
-            <ToggleButton active={mode === 'mttr'} onClick={() => setMode(mode === 'mttr' ? 'counts' : 'mttr')}>
-              {mode === 'mttr' ? 'Show alerts per analyst' : 'Show MTTR per analyst'}
-            </ToggleButton>
-            {mode === 'mttr' ? <HorizontalIQRBars rows={analysts} /> : countsChart()}
-            <ul className="text-xs brand-muted mt-3 list-disc list-inside">
-              <li>Contrast wide MTTR spreads with workload to decide where coaching or relief matters most.</li>
-              <li>Pair faster analysts with slower peers for priority alert types to shrink the entire band.</li>
-              <li>Hold the story to people, process, and data enrichment so the conversation stays human.</li>
-            </ul>
-          </div>
-        );
+          return (
+            <div>
+              {hasData ? (
+                <>
+                  <ToggleButton active={mode === 'mttr'} onClick={() => setMode(mode === 'mttr' ? 'counts' : 'mttr')}>
+                    {mode === 'mttr' ? 'Show alerts per analyst' : 'Show MTTR per analyst'}
+                  </ToggleButton>
+                  {mode === 'mttr' ? <HorizontalIQRBars rows={analysts} /> : countsChart()}
+                  <ul className="text-xs brand-muted mt-3 list-disc list-inside">
+                    <li>Contrast wide MTTR spreads with workload to decide where coaching or relief matters most.</li>
+                    <li>Pair faster analysts with slower peers for priority alert types to shrink the entire band.</li>
+                    <li>Hold the story to people, process, and data enrichment so the conversation stays human.</li>
+                  </ul>
+                </>
+              ) : (
+                <p className="text-xs brand-muted">No analyst data matches the current filters.</p>
+              )}
+            </div>
+          );
       };
 
       /* ------------------------------------------------------------------ */
@@ -767,7 +865,7 @@
         const [type, setType] = useState('All');
         const [source, setSource] = useState('All');
 
-        const { cust, ind, lbls, pick, apa, pctWithin1SD, bandLow, bandHigh } = useTimeframeSlices(dashboardData, timeframe);
+          const { cust, ind, lbls, pick, apa, pctWithin1SD, bandLow, bandHigh, filteredAlerts } = useTimeframeSlices(dashboardData, timeframe, analyst, type, source);
 
         const latestCust = cust[cust.length - 1];
         const latestInd = ind[ind.length - 1];
@@ -788,15 +886,15 @@
             sub: `Sector median: ${formatHours(latestInd)}`,
             icon: 'fa-regular fa-clock',
           },
-          {
-            label: 'Resolved within sector +1σ',
-            value: `${pctWithin1SD}%`,
-            delta: 'Goal ≥ 85%',
-            change: pctWithin1SD - 85,
-            better: 'target',
-            sub: 'Weeks where MTTR matches or beats the median plus one standard deviation.',
-            icon: 'fa-solid fa-bullseye',
-          },
+            {
+              label: 'Weeks inside peer performance band',
+              value: `${pctWithin1SD}%`,
+              delta: 'Target ≥ 85%',
+              change: pctWithin1SD - 85,
+              better: 'target',
+              sub: 'Share of weeks where MTTR stays within the sector median plus one standard deviation.',
+              icon: 'fa-solid fa-bullseye',
+            },
           {
             label: 'Median time to analyst pickup',
             value: formatHours(latestPick),
@@ -817,29 +915,35 @@
           },
         ];
 
-        const filteredAnalysts = useMemo(
-          () => (analyst === 'All' ? dashboardData.analystsBase : dashboardData.analystsBase.filter((entry) => entry.name === analyst)),
-          [analyst]
-        );
+          const dayOfWeekStats = useMemo(() => buildDayOfWeekStats(filteredAlerts), [filteredAlerts]);
+          const analystStats = useMemo(() => {
+            const stats = buildAnalystStats(filteredAlerts);
+            return analyst === 'All' ? stats : stats.filter((entry) => entry.name === analyst);
+          }, [filteredAlerts, analyst]);
+          const slowestAlertTypes = useMemo(() => {
+            const stats = buildAlertTypeStats(filteredAlerts);
+            return stats.sort((a, b) => b.pickup + b.median - (a.pickup + a.median)).slice(0, 10);
+          }, [filteredAlerts]);
 
         return (
           <div className="min-h-screen py-10 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto brand-shell p-6 sm:p-8 space-y-6">
-              <header className="space-y-3">
-                <p className="text-xs font-semibold tracking-[0.3em]" style={{ color: BRAND.sky }}>
-                  Critical Start MDR Operations
-                </p>
-                <h1 className="text-3xl font-bold tracking-tight" style={{ color: BRAND.charcoal }}>
-                  Full alert transparency, no exceptions.
-                </h1>
-                <p className="text-sm brand-muted">
-                  Once our U.S.-based, 24/7/365 SOC hands you a validated alert, this view shows how your team responds against sector peers. Tie every insight to staffing, workflow, and runway so
-                  follow-up plans feel confident, human, and actionable.
-                </p>
-                <p className="text-xs brand-muted">
-                  Every metric honors Critical Start&rsquo;s contractual SLAs, 90% analyst retention rate, and promise to keep your SOC outcomes improving week after week.
-                </p>
-              </header>
+                <header className="space-y-3">
+                  <p className="text-xs font-semibold tracking-[0.3em]" style={{ color: BRAND.sky }}>
+                    Critical Start MDR Operations
+                  </p>
+                  <h1 className="text-3xl font-bold tracking-tight" style={{ color: BRAND.charcoal }}>
+                    Your Team Performance dashboard.
+                  </h1>
+                  <p className="text-sm brand-muted">Show how your analysts pick up, investigate, and resolve every validated alert—then coach the next action with confidence.</p>
+                  <p className="text-sm brand-muted">
+                    Once our U.S.-based, 24/7/365 SOC hands you a validated alert, this view shows how your team responds against sector peers. Tie every insight to staffing, workflow, and runway so follow-up
+                    plans feel confident, human, and actionable.
+                  </p>
+                  <p className="text-xs brand-muted">
+                    Every metric stays benchmarked against sector medians, quartiles, and ±1σ bands while reinforcing Critical Start&rsquo;s 90% analyst retention and SOC transparency promises.
+                  </p>
+                </header>
 
               <section className="brand-card brand-gradient-panel p-5 sm:p-6 space-y-3">
                 <h2 className="text-lg font-semibold text-white">How to work this dashboard</h2>
@@ -874,20 +978,20 @@
               <section className="flex flex-col gap-6">
                 <Card title="Stopping threats today, preparing for tomorrow" eyebrow="MTTR VS SECTOR" right={<BrandIcon icon="fa-solid fa-chart-line" label="Line chart" variant="secondary" />}>
                   <LineBandChart xLabels={lbls} lineA={cust} lineB={ind} bandLow={bandLow} bandHigh={bandHigh} />
-                  <ul className="text-xs brand-muted mt-3 list-disc list-inside">
-                    <li>Solid line = your weekly MTTR. Keep it at or below the shaded peer range to stay confident in your coverage.</li>
-                    <li>Dashed line = sector median. Multiple weeks above it signal workflow or staffing pivots to discuss.</li>
-                    <li>Highlight spike weeks, then drill into the filters to show which alert types or handoffs stalled.</li>
-                  </ul>
+                    <ul className="text-xs brand-muted mt-3 list-disc list-inside">
+                      <li>Solid line = your weekly MTTR. Keep it inside the shaded sector Q1–Q3 band and ±1σ guardrails to stay confident in your coverage.</li>
+                      <li>Dashed line = sector median. Multiple weeks above it signal workflow or staffing pivots to discuss.</li>
+                      <li>Highlight spike weeks, then drill into the filters to show which alert types or handoffs stalled.</li>
+                    </ul>
                 </Card>
 
-                <Card title="Secure every moment with always-on vigilance" eyebrow="DAY-OF-WEEK STORY" right={<BrandIcon icon="fa-regular fa-chart-bar" label="Bar chart" variant="secondary" />}>
-                  <DowChartContent data={dashboardData.dayOfWeek} />
-                </Card>
+                  <Card title="Secure every moment with always-on vigilance" eyebrow="DAY-OF-WEEK STORY" right={<BrandIcon icon="fa-regular fa-chart-bar" label="Bar chart" variant="secondary" />}>
+                    <DowChartContent data={dayOfWeekStats} />
+                  </Card>
 
-                <Card title="Human intuition meets cutting-edge tech" eyebrow="ANALYST BREAKDOWN" right={<BrandIcon icon="fa-solid fa-people-group" label="Analyst" variant="secondary" />}>
-                  <AnalystBreakdownContent analysts={filteredAnalysts} />
-                </Card>
+                  <Card title="Human intuition meets cutting-edge tech" eyebrow="ANALYST BREAKDOWN" right={<BrandIcon icon="fa-solid fa-people-group" label="Analyst" variant="secondary" />}>
+                    <AnalystBreakdownContent analysts={analystStats} />
+                  </Card>
 
                 <Card title="Less backlog, more breathing room" eyebrow="WORKLOAD + MTTR" right={<BrandIcon icon="fa-solid fa-wave-square" label="Activity" variant="secondary" />}>
                   <ComboBarDualLine bars={apa} lineA={cust} lineB={pick} labels={lbls} />
@@ -898,8 +1002,8 @@
                   </ul>
                 </Card>
 
-                <Card title="Custom responses that turn complexity into clarity" eyebrow="SLOWEST ALERT TYPES">
-                  <SlowTypesChart rows={dashboardData.alertTypesData.slice().sort((a, b) => b.pickup + b.median - (a.pickup + a.median)).slice(0, 10)} />
+                  <Card title="Custom responses that turn complexity into clarity" eyebrow="SLOWEST ALERT TYPES">
+                    <SlowTypesChart rows={slowestAlertTypes} />
                   <ul className="text-xs brand-muted mt-3 list-disc list-inside">
                     <li>Stacked bars combine pickup (light) and MTTR (dark) for the ten slowest alert types in your queue.</li>
                     <li>Use this view to justify new playbooks, enrichment feeds, or vendor escalations.</li>
