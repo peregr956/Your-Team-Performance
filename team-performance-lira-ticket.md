@@ -1,69 +1,63 @@
-# Lira Ticket: CORR Your Team Performance Dashboard
+# Lira Ticket · CORR “Your Team Performance” Module
 
 ## TLDR
-- Productize the “Your Team Performance” dashboard inside CORR so customers see how their SOC responds after Critical Start escalates validated alerts, matching the README narrative.
-- Deliver scenario filters, coaching-ready KPIs, and benchmarked charts from `team-performance-wireframe.html`, preserving tone, copy, and brand shell.
-- Serve SOC/security team managers first, ensuring they can run weekly coaching huddles and executive briefings without stitching data from other tools.
-- Consider the module done when experiences mirror the wireframe, filters feel trustworthy, and adoption proves users rely on it for staffing, workflow, and SLA decisions.
+- Launch the wireframed dashboard inside CORR so customers instantly see how their SOC responds once Critical Start escalates validated alerts.
+- Keep the four-slice experience intact: scenario filters → KPI stack → benchmarked charts → coaching copy that states “what to do next.”
+- Success = managers can brief leadership in <5 minutes, ≥85% of weeks land inside the peer band, and telemetry shows the module is used in weekly huddles/QBRs.
 
-## Problem & Opportunity
-- Managers lack a single-pane story that connects pickup speed, MTTR, and backlog after Critical Start’s SOC hands off an alert.
-- Current reporting seldom compares customer performance to sector peers, making it hard to justify coaching or investment.
-- Without scoped filters, narratives stay generic and cannot identify which analysts, alert types, or sources drive delays.
-- Turning the deterministic wireframe into a CORR module anchors conversations in human, actionable insights instead of raw metrics.
+## Why Now
+- SOC managers still stitch MTTR, pickup, and backlog data across tools, so coaching talks feel reactive.
+- Existing reports rarely benchmark customers against sector peers, weakening budget or staffing asks.
+- The deterministic wireframe already proves the story; customers need it shipping inside CORR with the same brand promise.
 
-## Who We Serve & Key Jobs
-- **SOC/security team manager**: coach analysts, spotlight bottlenecks, and walk leadership through “what happened, why, what’s next.”
-- **Analyst team lead**: pair faster analysts with slower peers, plan surge coverage, and align playbooks with observed workload.
-- **Customer security executive / budget owner**: benchmark MTTR and SLA adherence before approving staffing, automation, or tooling.
-- **Critical Start engagement manager or practice leader**: brief stakeholders on joint MDR outcomes and prioritize follow-up sessions.
+## Audience & Jobs To Be Done
+- **SOC/security team manager** – narrate “what happened, why, what’s next,” then redirect coaching or surge coverage.
+- **Analyst team lead** – pair faster analysts with slower peers, highlight workload fairness, and justify playbook tweaks.
+- **Customer security executive / budget owner** – confirm SLA health versus peers before approving headcount or tooling.
+- **Critical Start engagement lead** – brief stakeholders on joint MDR outcomes without recreating charts.
 
-## Desired Outcomes & Success Measures
-- Managers can explain the last sprint’s performance in under five minutes using filters, KPIs, and insight copy.
-- ≥85% of monitored weeks stay inside the peer performance band, or the module clearly flags why not with narrative prompts.
-- At least 70% of weekly huddles or QBRs reference this module (measured via CORR telemetry or export tracking).
-- Users share or export the dashboard confidently because copy, visuals, and benchmarks stay deterministic and on-brand.
+## Outcomes & Guardrails
+- Managers can retell the last sprint using filters + copy from this module alone.
+- ≥70% of weekly huddles/QBRs open this view (tracked via CORR telemetry or export logs).
+- KPIs and insights stay deterministic and on-brand so screenshots travel well.
+- If the peer-band KPI drops below 85%, the module points to the culprit (analyst, alert type, or day) within two clicks.
 
-## Experience Overview (reference `team-performance-wireframe.html`)
-- **Scenario filters first** — Timeframe (4/8/12 weeks), analyst, alert type, and alert source must be selected before any KPI or chart renders; helper text reminds users the filters scope the entire story.
-- **KPI stack** — Four cards (Weekly MTTR, Weeks inside peer band, Median time to analyst pickup, Alerts per analyst) show value, trend tag vs baseline, icon, and subcopy explaining action.
-- **MTTR vs sector benchmarks** — Solid customer line against shaded Q1–Q3 peer band with ±1σ guardrails and dashed sector median; bullets prompt managers to highlight trend weeks and drill into filters.
-- **Day-of-week variability** — Toggle between box-and-whisker and swarm plots to expose volatility, weekend hotspots, and recommended actions from the insight list.
-- **Analyst performance distribution** — Toggle between MTTR spread and alerts-per-analyst counts to pair workload with coaching cues.
-- **Workload & slow alert storytelling** — Combo bar + dual line links workload per analyst with MTTR/pickup trends; slowest alert types chart stacks pickup and resolution times with counts so playbook or staffing asks feel justified.
+## Experience Pillars (per `team-performance-wireframe.html`)
+- **Scenario filters** – Timeframe (4/8/12 weeks), analyst, alert type, and alert source selected before data renders; helper text reiterates the scope.
+- **KPI stack** – Weekly MTTR, Weeks inside peer band, Median pickup, Alerts per analyst; each shows value, delta vs baseline, icon, and single-line guidance.
+- **MTTR vs sector chart** – Solid customer line, dashed median, shaded Q1–Q3 band with ±1σ guardrails; bullet copy prompts managers to flag trend weeks.
+- **Day-of-week variability** – Toggle box plot ↔ swarm plot to expose weekend hotspots and recommend staffing or automation shifts.
+- **Analyst distribution** – Toggle MTTR spread ↔ workload counts so leaders diagnose whether coaching or coverage matters most.
+- **Workload + slow alert storytelling** – Combo bar/dual line ties workload to MTTR and pickup; stacked bars for the ten slowest alert types include pickup + resolution time + alert counts.
 
-## Content & Narrative Requirements
-- Maintain the confident, human, actionable tone from the README and prototype; every module section should read like a coaching script.
-- Keep insight bullet lists under each visualization so the dashboard states what to investigate next, not only what happened.
-- Follow brand copy rules (Oxford commas, spell out acronyms on first mention, reinforce Critical Start promises like 90% analyst retention).
-- Tie every call-to-action to staffing, workflow, or automation decisions so business stakeholders hear a clear “so what.”
+## Tone, Copy, and Narrative
+- Keep the confident, human, actionable voice from the README; every section reads like a coaching script, not a data dump.
+- Insight bullets under each visualization tell users what to investigate next.
+- Follow brand rules: Oxford commas, spell out acronyms on first mention, highlight Critical Start’s transparency and 90% analyst retention promise.
 
-## Filters & Interaction Behaviors
-- Filters apply globally before KPIs render, preventing momentary flashes of stale or irrelevant data.
-- Default timeframe is the last 12 weeks, with quick pivots to 4 or 8 weeks for sprint or quarterly storytelling.
-- Analyst selection narrows analyst-specific views while the rest of the module still references sector benchmarks for context.
-- Day-of-week and analyst toggles remember the last selection during a session to reduce friction across multiple conversations.
+## Filters & Interaction Principles
+- Filters act globally; nothing renders until a scenario is chosen, preventing stale data flashes.
+- Default to the last 12 weeks; quick pivots to 4 or 8 weeks support sprint and quarterly storytelling.
+- Analyst filter tightens the Analyst Distribution card while other views still show peer context.
+- Day-of-week and analyst toggles remember the last selection in-session to reduce rework.
 
-## Data & Benchmark Requirements
-- Display weekly medians for MTTR and pickup alongside deterministic peer medians, quartiles, and ±1σ guardrails.
-- Calculate alerts-per-analyst index using the count of active analysts per week so workload pressure is obvious.
-- Surface the Weeks inside peer band KPI with its ≥85% target and explain what falling short implies.
-- Slowest alert types view combines pickup and resolution duration plus alert counts, enabling concrete staffing or playbook decisions.
+## Data & Benchmark Expectations
+- Weekly medians for MTTR and pickup compared to deterministic sector medians, quartiles, and ±1σ guardrails.
+- Alerts-per-analyst index = weekly alerts ÷ count of active analysts so pressure is obvious.
+- Weeks-inside-peer-band KPI shows progress vs the ≥85% target and explains the implication when it falls short.
+- Slowest alert types view merges pickup + resolution time plus total alert counts to back staffing or playbook requests.
 
 ## Accessibility & Brand Commitments
-- Apply Critical Start gradients, typography, iconography, and card treatments exactly as in the wireframe and brand kit.
-- Preserve contrast ratios for cards, text, and chart elements so the module remains legible against gradient backdrops.
-- Ensure filter controls and toggles meet focus, keyboard, and hit-area standards for accessibility.
-- Reinforce Critical Start’s transparency and retention promises whenever performance narratives mention trust or coverage.
+- Use the Critical Start gradients, typography, radii, and iconography exactly as in the wireframe.
+- Preserve contrast ratios so cards, text, and chart elements remain legible on gradient panels.
+- Filters and toggles must meet keyboard/focus requirements and feel confident when used in demos.
 
 ## Dependencies & Assumptions
-- `team-performance-wireframe.html` remains the canonical reference for layout, copy blocks, and microcopy until design QA completes.
-- Telemetry-backed data sources provide alerts, analyst metadata, alert types, sources, and sector benchmarks validated by SOC leadership.
-- Brand, product, and SOC stakeholders sign off on KPI definitions, thresholds, and narrative copy before handoff.
-- Analytics instrumentation will capture filter usage, exports, and dwell time to guide future iterations.
+- `team-performance-wireframe.html` remains the layout and copy source until design QA signs off.
+- Telemetry-backed data feeds supply alerts, analysts, alert types/sources, and peer benchmarks validated by SOC leadership.
+- Brand, product, and SOC partners approve KPI definitions, thresholds, and copy before handoff; analytics instrumentation captures filter usage, exports, and dwell time.
 
-## Open Questions & Follow-Ups
-- Do we need saved filter presets for recurring leadership briefings, or is manual selection acceptable for launch?
-- Should weekend behavior remain visible by default, or do customers expect business-day-only narratives?
-- What share/export mechanism inside CORR best supports executives who need snapshots for decks or emails?
-- How will we capture qualitative feedback from SOC managers during early access to confirm the module’s coaching utility?
+## Open Questions
+- Do we need saved filter presets for recurring leadership briefings?
+- Should weekends stay visible by default, or do customers expect a business-day lens?
+- What share/export flow inside CORR best fits executives who need snapshots for decks or emails?
